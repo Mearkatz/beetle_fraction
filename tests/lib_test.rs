@@ -8,7 +8,7 @@ mod lib_test {
     use rand::{thread_rng, Rng};
 
     #[test]
-    fn macros_work() {
+    pub fn macros_work() {
         let a: u32 = 5;
         let b: u32 = 29;
 
@@ -18,7 +18,7 @@ mod lib_test {
     }
 
     #[test]
-    fn float_conversions_works() {
+    pub fn float_conversions_works() {
         // Turn Fraction into Float
         let fract: Fraction<u8> = frac![1, 2];
         let float: f64 = fract.into();
@@ -30,14 +30,14 @@ mod lib_test {
     }
 
     #[test]
-    fn fraction_to_string_works() {
+    pub fn fraction_to_string_works() {
         let f = frac![1, 2];
         let s = f.to_string();
         assert_eq!(&s, "1 / 2");
     }
 
     #[test]
-    fn common_math_works() {
+    pub fn common_math_works() {
         // TESTING CONSTANTS
         type LittleType = i16; // LittleType::MIN .. MAX is the range of possible fraction numerators and denominators
         type BigType = i64; // Fractions are actually of this type instead of LittleType to prevent overflows
@@ -126,7 +126,7 @@ mod lib_test {
     }
 
     #[test]
-    fn checked_math_works() {
+    pub fn checked_math_works() {
         // u8::MAX + 1 should overflow
         let f: Fraction<u8> = int![u8::MAX];
         assert!(f.checked_add(&int![1]).is_none());
