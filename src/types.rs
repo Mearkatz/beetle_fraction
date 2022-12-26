@@ -1,6 +1,6 @@
 //! Types, Structs, and Type Conversions, and Non-Math-Related Impl blocks.
 
-use crate::{frac, int, Number};
+use crate::Number;
 use num::integer::gcd;
 use num::{One, Zero};
 use std::fmt;
