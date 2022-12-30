@@ -1,9 +1,11 @@
 //! Contains operations and their variants (Addition, Checked_Addition, etc.)
 
-/// Contains implementations of common math operations like Addition & Subtraction for Fractions
+/// Common math operators like `+`, `-`, `*`, `/`, etc.
 pub mod common {
-    use crate::{frac, Fraction, Number};
+    use crate::{frac, types::Fraction, Number};
+
     use num::{One, Zero};
+
     use std::{
         iter::{Product, Sum},
         ops::{Add, Div, Mul, Neg, Sub},
@@ -14,7 +16,7 @@ pub mod common {
         type Output = Self;
 
         fn neg(self) -> Self::Output {
-            frac![-self.x, self.y]
+            frac![-self.numerator, self.denominator]
         }
     }
 
@@ -22,7 +24,10 @@ pub mod common {
         type Output = Self;
 
         fn add(self, other: Self) -> Self::Output {
-            frac![(self.x * other.y) + (self.y * other.x), self.y * other.y]
+            frac![
+                (self.numerator * other.denominator) + (self.denominator * other.numerator),
+                self.denominator * other.denominator
+            ]
         }
     }
 
@@ -30,14 +35,20 @@ pub mod common {
         type Output = Self;
 
         fn sub(self, other: Self) -> Self::Output {
-            frac![(self.x * other.y) - (self.y * other.x), (self.y * other.y)]
+            frac![
+                (self.numerator * other.denominator) - (self.denominator * other.numerator),
+                (self.denominator * other.denominator)
+            ]
         }
     }
 
     impl<T: Number> Mul for Fraction<T> {
         type Output = Self;
         fn mul(self, other: Self) -> Self::Output {
-            frac![self.x * other.x, self.y * other.y]
+            frac![
+                self.numerator * other.numerator,
+                self.denominator * other.denominator
+            ]
         }
     }
 
@@ -47,11 +58,13 @@ pub mod common {
             if other.is_zero() {
                 panic!("Division by a Fraction equal to zero is disallowed.");
             }
-            frac![self.x * other.y, self.y * other.x]
+            frac![
+                self.numerator * other.denominator,
+                self.denominator * other.numerator
+            ]
         }
     }
 
-    // Misc. Math functions
     impl<T: Number> Fraction<T> {
         /// # Exponentiation function
         /// Raises `self` to the power of `n`
@@ -59,8 +72,8 @@ pub mod common {
         /// # Examples
         ///
         /// ```
-        /// use beetle_fraction::ops::common::Fraction;
-        ///
+        /// # use beetle_fraction::types::Fraction;
+        /// # use beetle_fraction::frac;
         /// let fraction = frac![2, 1];
         /// assert_eq!(fraction.pow(3), frac![8, 1]);
         /// ```
@@ -71,9 +84,10 @@ pub mod common {
                 { std::iter::repeat(*self).take(n.unsigned_abs()).product() };
 
             // A ^ -b == 1 / (a ^ b)
-            match n > 0 {
-                true => partial_result,
-                false => partial_result.reciprocal(),
+            if n > 0 {
+                partial_result
+            } else {
+                partial_result.reciprocal()
             }
         }
 
@@ -81,27 +95,26 @@ pub mod common {
         ///
         /// # Examples
         ///
-        /// ```
-        /// use beetle_fraction::ops::common::Fraction;
-        ///
-        /// let fraction = frac[1, 2];
+        /// ```        
+        /// # use beetle_fraction::frac;
+        /// # use beetle_fraction::types::Fraction;
+        /// let fraction = frac![1, 2];
         /// assert_eq!(fraction.reciprocal(), frac![2, 1]);
         /// ```
         pub fn reciprocal(&self) -> Self {
             Self {
-                x: self.y,
-                y: self.x,
+                numerator: self.denominator,
+                denominator: self.numerator,
             }
         }
 
-        /// Identical to reciprocal
-        pub fn flip(&self) -> Self {
-            frac![self.y, self.x]
-        }
-
-        /// Operation that adds
+        /// Computes the mediant of two fractions.
+        /// The mediant of (a / b) and (c / d) is ((a + b) / (c + d))
         pub fn mediant(&self, other: &Self) -> Self {
-            frac![self.x + other.x, self.y + other.y]
+            frac![
+                self.numerator + other.numerator,
+                self.denominator + other.denominator
+            ]
         }
     }
 
@@ -119,16 +132,12 @@ pub mod common {
     }
 }
 
+/// Assignment Operators like `+=`, `-=`, '*=', `/=`, etc.
 pub mod assignment {
-    //! # Assignment Operations
-    //!
-    //! These are versions of the normal operations whose result is not returned, but instead set as the value of the object they're called with.
-    //! A good example of this is the `+=` operator in most programming languages
-    //! This is referred to here as `AddAssign`.
 
     use std::ops::{AddAssign, DivAssign, MulAssign, SubAssign};
 
-    use crate::{Fraction, Number};
+    use crate::{types::Fraction, Number};
 
     impl<T: Number> AddAssign for Fraction<T> {
         fn add_assign(&mut self, rhs: Self) {
@@ -155,24 +164,20 @@ pub mod assignment {
     }
 }
 
+/// Checked versions of operators like `+` and `-`
 pub mod checked {
-    // use std::ops::{
-    //     Neg,
-    //     Add, Sub, Mul, Div, Rem,
-    //     AddAssign, SubAssign, MulAssign, DivAssign, RemAssign
-    // };
-    use crate::{frac, Fraction, Number};
+    use crate::{frac, types::Fraction, Number};
     use num::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub};
 
     impl<T: Number + CheckedMul + CheckedAdd> CheckedAdd for Fraction<T> {
         fn checked_add(&self, v: &Self) -> Option<Self> {
             // Calculate both halves of the numerator, overflows immediately return None
-            let numerator_left = self.x.checked_mul(&v.y);
-            let numerator_right = self.y.checked_mul(&v.x);
+            let numerator_left = self.numerator.checked_mul(&v.denominator);
+            let numerator_right = self.denominator.checked_mul(&v.numerator);
 
             // Calculate numerator and denominator, any overflows immediately return None
             let numerator = numerator_left?.checked_add(&numerator_right?)?;
-            let denominator = self.y.checked_mul(&v.y)?;
+            let denominator = self.denominator.checked_mul(&v.denominator)?;
 
             Some(frac![numerator, denominator])
         }
@@ -181,12 +186,12 @@ pub mod checked {
     impl<T: Number + CheckedMul + CheckedSub> CheckedSub for Fraction<T> {
         fn checked_sub(&self, v: &Self) -> Option<Self> {
             // Calculate both halves of the numerator, overflows immediately return None
-            let numerator_left = self.x.checked_mul(&v.y);
-            let numerator_right = self.y.checked_mul(&v.x);
+            let numerator_left = self.numerator.checked_mul(&v.denominator);
+            let numerator_right = self.denominator.checked_mul(&v.numerator);
 
             // Calculate numerator and denominator, any overflows immediately return None
             let numerator = numerator_left?.checked_sub(&numerator_right?)?;
-            let denominator = self.y.checked_mul(&v.y)?;
+            let denominator = self.denominator.checked_mul(&v.denominator)?;
 
             Some(frac![numerator, denominator])
         }
@@ -194,21 +199,22 @@ pub mod checked {
 
     impl<T: Number + CheckedMul> CheckedMul for Fraction<T> {
         fn checked_mul(&self, v: &Self) -> Option<Self> {
-            let numerator = self.x.checked_mul(&v.x)?;
-            let denominator = self.y.checked_mul(&v.y)?;
+            let numerator = self.numerator.checked_mul(&v.numerator)?;
+            let denominator = self.denominator.checked_mul(&v.denominator)?;
             Some(frac![numerator, denominator])
         }
     }
 
     impl<T: Number + CheckedMul> CheckedDiv for Fraction<T> {
         fn checked_div(&self, v: &Self) -> Option<Self> {
-            let numerator = self.x.checked_mul(&v.y)?;
-            let denominator = self.y.checked_mul(&v.x)?;
+            let numerator = self.numerator.checked_mul(&v.denominator)?;
+            let denominator = self.denominator.checked_mul(&v.numerator)?;
             Some(frac![numerator, denominator])
         }
     }
 }
 
+/// Unchecked versions of operators like `+` and `-`. USE WITH CAUTION.
 pub mod unchecked {}
 
 /// Implements variants of math operations that saturate at the bounds of a Fraction's type.
@@ -229,36 +235,36 @@ pub mod saturating {
 
 /// Implements the comparison operators > < >= <= == != , as well as PartialOrd for Fraction
 pub mod comparisons {
-    use crate::{Fraction, Number};
+    use crate::{types::Fraction, Number};
     // use num::{integer::lcm, Zero};
     use std::cmp::{PartialEq, PartialOrd};
 
     impl<T: Number> PartialEq for Fraction<T> {
         fn eq(&self, other: &Self) -> bool {
-            // let e = lcm(self.y, other.y);
-            // (e / self.y) == (e / other.y)
+            // let e = lcm(self.denominator, other.denominator);
+            // (e / self.denominator) == (e / other.denominator)
 
             // Let's just return whether their difference is zero
             // (*self - *other).is_zero()
-            (self.x * other.y) == (self.y * other.x)
+            (self.numerator * other.denominator) == (self.denominator * other.numerator)
         }
     }
 
     impl<T: Number> PartialOrd for Fraction<T> {
         fn gt(&self, other: &Self) -> bool {
-            (self.x * other.y) > (self.y * other.x)
+            (self.numerator * other.denominator) > (self.denominator * other.numerator)
         }
 
         fn ge(&self, other: &Self) -> bool {
-            (self.x * other.y) >= (self.y * other.x)
+            (self.numerator * other.denominator) >= (self.denominator * other.numerator)
         }
 
         fn le(&self, other: &Self) -> bool {
-            (self.x * other.y) <= (self.y * other.x)
+            (self.numerator * other.denominator) <= (self.denominator * other.numerator)
         }
 
         fn lt(&self, other: &Self) -> bool {
-            (self.x * other.y) < (self.y * other.x)
+            (self.numerator * other.denominator) < (self.denominator * other.numerator)
         }
 
         fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {

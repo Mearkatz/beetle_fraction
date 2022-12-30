@@ -1,20 +1,44 @@
 //! Types, Structs, and Type Conversions, and Non-Math-Related Impl blocks.
 
-use crate::Number;
+use crate::{frac, Number};
 use num::integer::gcd;
 use num::{One, Zero};
 use std::fmt;
 
-/// Stores a Fraction (x / y)
+/// Stores a Fraction (x / y) as two distinct integers
 #[derive(Default, Copy, Clone, Debug)]
 pub struct Fraction<T: Number> {
-    pub x: T,
-    pub y: T,
+    /// Top half of the fraction    
+    pub numerator: T,
+    /// Bottom half of the fraction.
+    pub denominator: T,
 }
+
+/// Operations involving Fractions that return `Result`'s will return one of these variants as an `Err`
+#[derive(Debug, Copy, Clone)]
 pub enum FractionErrors {
-    ImpliedDivisionByZero, // Occurs when Fraction::new is called with a `y` value of zero. (Does this actually matter ?)
+    /// Denotes that a Fraction was created whose denominator was zero, and thus considered an error in its context.
+    /// This isn't very useful right now.
+    ImpliedDivisionByZero,
+
+    /// Represents the failure of an operation when the `numerator` of the fraction overflows
     NumeratorOverflow,
+
+    /// Represents the failure of an operation when the `denominator` of the fraction overflows
     DenominatorOverflow,
+
+    /// Used to denote when casting a string as a Fraction failed
+    UnableToParseString,
+
+    /// Trying to cast a f64 containing either infinity to a Fraction returns this Error.
+    /// Infinity cannot, to my knowledge, be represented as the ratio of two integers.
+    InfinityIsNotARatio,
+
+    /// Trying to cast an f64's whole number part to an integer sometimes fails if that integer part is too large
+    WholeNumberPartOfFloatWasTooLargeToParse,
+
+    /// Represents a failure to parse a Float in some misc. way
+    FailureToParseFloat,
 }
 
 // One & Zero impls
@@ -22,13 +46,13 @@ impl<T: Number> One for Fraction<T> {
     fn is_one(&self) -> bool {
         // Numerator and denominator are the same
         // Denominator must not be zero, since division by zero is undefined
-        (self.x == self.y) && (!self.y.is_zero())
+        (self.numerator == self.denominator) && (!self.denominator.is_zero())
     }
 
     fn one() -> Self {
         Self {
-            x: T::one(),
-            y: T::one(),
+            numerator: T::one(),
+            denominator: T::one(),
         }
     }
 
@@ -39,13 +63,13 @@ impl<T: Number> One for Fraction<T> {
 
 impl<T: Number> Zero for Fraction<T> {
     fn is_zero(&self) -> bool {
-        self.x.is_zero()
+        self.numerator.is_zero()
     }
 
     fn zero() -> Self {
         Self {
-            x: T::zero(),
-            y: T::one(),
+            numerator: T::zero(),
+            denominator: T::one(),
         }
     }
 
@@ -57,28 +81,43 @@ impl<T: Number> Zero for Fraction<T> {
 // Misc. Impls
 // These are sets of functions that aren't an implementation of a trait
 impl<T: Number> Fraction<T> {
-    /**
-    Creates a new Fraction<T>
-    # Examples
-    ```
-    use beetle_fraction::types::Fraction;
-    let one_half = Fraction::new(1, 2); // represents (1 / 2)
-    assert_eq!(one_half, Fraction {1, 2});
-    ```
-    */
-    pub fn new(x: T, y: T) -> Self {
-        Self { x, y }
+    /// Creates a new Fraction
+    ///
+    /// # Examples
+    /// ```
+    /// # use beetle_fraction::types::Fraction;
+    /// let one_half: Fraction<i32> = Fraction::new(1, 2); // Represents (1 / 2)
+    /// assert_eq!(one_half, Fraction {numerator: 1, denominator: 2});
+    /// ```
+    pub fn new(numerator: T, denominator: T) -> Self {
+        Self {
+            numerator,
+            denominator,
+        }
     }
 
     /// Version of the `new` function with some extra safety checks
     ///
     /// Safety Checks:
-    /// 1. y (denominator) must be non-zero, to prevent implied division by zero
-    pub fn checked_new(x: T, y: T) -> Result<Self, FractionErrors> {
-        if y.is_zero() {
+    /// - must be non-zero, to prevent implied division by zero
+    ///
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use beetle_fraction::types::Fraction;
+    /// let bad_fraction = Fraction::checked_new(1, 0); // is the error variant, because of implied division by zero
+    /// assert!(bad_fraction.is_err())
+    ///
+    /// ```
+    pub fn checked_new(numerator: T, denominator: T) -> Result<Self, FractionErrors> {
+        if denominator.is_zero() {
             Err(FractionErrors::ImpliedDivisionByZero)
         } else {
-            Ok(Self { x, y })
+            Ok(Self {
+                numerator,
+                denominator,
+            })
         }
     }
 
@@ -94,164 +133,139 @@ impl<T: Number> Fraction<T> {
     /// assert_eq!(two_fourths.simplest_form(), one_half);
     /// ```
     pub fn simplest_form(&self) -> Self {
-        let fac: T = gcd(self.x, self.y);
-        Self {
-            x: self.x / fac,
-            y: self.y / fac,
-        }
+        let fac: T = gcd(self.numerator, self.denominator);
+        frac![self.numerator / fac, self.denominator / fac]
     }
 
     /// Shorthand for `my_fraction = my_fraction.simplest_form();`
+    ///
+    /// # Examples
+    /// ```
+    /// # use beetle_fraction::{types::Fraction, frac};
+    /// let mut half: Fraction<u8> = frac![50, 100];
+    /// half.simplify();
+    /// assert!((half.numerator == 1) && (half.denominator == 2));
+    /// ```
     pub fn simplify(&mut self) {
         *self = self.simplest_form();
     }
-
-    /// # Creates a Unit Fraction.
-    /// A unit fraction always has a numerator of 1
-    pub fn unit(y: T) -> Self {
-        Self { x: T::one(), y }
-    }
 }
 
-// Display impl
-// Allows for printing any Fraction to the terminal in a readable way.
 impl<T: Number> fmt::Display for Fraction<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?} / {:?}", self.x, self.y)
+        write!(f, "{:?} / {:?}", self.numerator, self.denominator)
     }
 }
 
-/// # Type Conversions
-/// Allows converting Fractions into other types and vice versa.
+/// Functions to convert Into and From Fractions
 pub mod conversions {
     /// Conversions between Fractions and Collections (namely Tuples & Strings)
     pub mod collections {
-        use crate::{frac, Fraction, Number};
+        use crate::{frac, types::Fraction, Number};
 
-        // TUPLE -> FRAC
+        // TUPLE -> FRACTION
         impl<T: Number> From<(T, T)> for Fraction<T> {
             fn from(tup: (T, T)) -> Self {
                 frac![tup.0, tup.1]
             }
         }
-
-        // FRAC -> TUPLE
-        impl<T: Number> Into<(T, T)> for Fraction<T> {
-            fn into(self) -> (T, T) {
-                (self.x, self.y)
-            }
-        }
-
-        // FRAC -> STRING (If T only implements Debug)
-        // Purposefully removed:
-        // Reason: to_string is given for free
-        // impl<T: Number> Into<String> for Fraction<T> {
-        //     fn into(self) -> String {
-        //         format!("{:?} / {:?}", self.x, self.y)
-        //     }
-        // }
     }
 
     /// # Conversions between Fractions and Unit types (u8, i8, u32, etc.)
     pub mod units {
+        use crate::{frac, int, types::Fraction, Number};
+        use num::traits::{CheckedAdd, CheckedSub};
 
-        use crate::{frac, int, Fraction, Number};
+        // (Try) f64 -> Fraction<i128>
+        impl TryFrom<f64> for Fraction<i128> {
+            type Error = crate::types::FractionErrors;
 
-        // Number -> Frac
-        // Purposefully removed.
-        // Reason:
-        // - int![x, y] is preferred
-        // - we also don't want Into automatically generated, because:
-        //      - All integers X can be turned into Fractions via int![X, 1],
-        //      - Fractions F whose simplest form's denominators are not 1 cannot be converted to integers accurately
-        //
-        //
-        // impl<T: Number> From<T> for Fraction<T> {
-        //     fn from(val: T) -> Self {
-        //         Fraction { x: val, y: T::one() }
-        //     }
-        // }
-
-        /*
-        FLOAT CONVERSION:
-        (INTO AND FROM)
-        */
-
-        /// Converts an &f64 into a Fraction<i128>
-        /// Because not all Floats can be represented as the ratio of two integers, this can fail.
-        /// If this fails, it returns None
-        /// This will only panic due to overflow.
-
-        pub fn float_to_fraction(f: &f64) -> Option<Fraction<i128>> {
-            // If Float isn't a number, It cannot be converted to a Fraction
-            if !f.is_finite() {
-                return None;
-            }
-            // If Float is an integer, just return that integer as a Fraction
-            // It's an easy conversion
-            if f.fract() == 0. {
-                let float_as_integer = f.trunc() as i128;
-                return Some(int![float_as_integer]);
-            }
-
-            // else if f == &0. {
-            //     return Some(int![0])
-            // }
-
-            let binding: String = f.to_string();
-            let split_by_decimal_point: Vec<&str> = binding.split('.').collect();
-            // The integer part of the float is everything left of the decimal point
-            // If conversion to integer type T isn't successful, return None
-            // Also store whether the fraction is negative
-            let integer: i128 = split_by_decimal_point[0].parse().ok()?;
-
-            // - The fraction part of the float is everything that comes to the right of the decimal point
-            // - We need to store it as a string first to prevent a warning/error
-            // - Convert integer and fractional from strings into Vectors of digits (u8's)
-            let fractional: Vec<u8> = split_by_decimal_point[1]
-                .to_string()
-                .chars()
-                .map(|x: char| x.to_string().parse::<u8>().unwrap())
-                .collect();
-
-            let mut result: Fraction<i128> = int!(integer);
-
-            /*
-            1. Cast every digit in the fraction part as u128
-            2. Iterate the fraction part
-            3. Turn every digit into its fraction representation
-            4. Add all those fractions together
-
-            Ex:
-            (1.25) => 1 + (2/10) + (5/100)
-            (-1.25) => -1 - (2/10) - (5/100)
-            */
-            for (index, digit) in fractional.into_iter().map(i128::from).enumerate() {
-                // Add (1 / (10 ** power)) to the current total
-                let power: u32 = (index + 1).try_into().ok()?;
-                let power_ten = 10_i128.pow(power);
-                if f > &0. {
-                    result += frac![digit, power_ten];
-                } else {
-                    result -= frac![digit, power_ten];
+            fn try_from(f: f64) -> Result<Self, Self::Error> {
+                // If Float isn't a number, It cannot be converted to a Fraction
+                if !f.is_finite() {
+                    return Err(Self::Error::InfinityIsNotARatio);
                 }
-                result.simplify();
-            }
+                // If Float is an integer, just return that integer as a Fraction
+                // It's an easy conversion
+                if (f.fract() == 0.) || (f.fract() == -0.) {
+                    return Ok(int!(0));
+                } else if f.fract() == -0. {
+                    return Ok(-int![0]);
+                }
 
-            Some(result)
+                let binding: String = f.to_string();
+                let split_by_decimal_point: Vec<&str> = binding.split('.').collect();
+                // The integer part of the float is everything left of the decimal point
+                // If conversion to integer type T isn't successful, return an Error
+                let integer: i128 = if let Ok(x) = split_by_decimal_point[0].parse() {
+                    x
+                } else {
+                    return Err(Self::Error::WholeNumberPartOfFloatWasTooLargeToParse);
+                };
+
+                // - The fraction part of the float is everything that comes to the right of the decimal point
+                // - We need to store it as a string first to prevent a warning/error
+                // - Convert integer and fractional from strings into Vectors of digits (u8's)
+                let fractional: Vec<u8> = split_by_decimal_point[1]
+                    .to_string()
+                    .chars()
+                    .map(|x: char| x.to_string().parse::<u8>().unwrap())
+                    .collect();
+
+                let mut result: Fraction<i128> = int!(integer);
+
+                /*
+                1. Cast every digit in the fraction part as u128
+                2. Iterate the fraction part
+                3. Turn every digit into its fraction representation
+                4. Add all those fractions together
+
+                Ex:
+                (1.25) => 1 + (2/10) + (5/100)
+                (-1.25) => -1 - (2/10) - (5/100)
+                */
+                for (index, digit) in fractional.into_iter().map(i128::from).enumerate() {
+                    // Add (1 / (10 ** power)) to the current total
+                    let power: u32 = match (index + 1).try_into() {
+                        Ok(n) => n,
+                        Err(_) => {
+                            return Err(Self::Error::FailureToParseFloat);
+                        }
+                    };
+                    let power_ten = 10_i128.pow(power);
+                    if f.is_sign_positive() {
+                        result = match result.checked_add(&frac![digit, power_ten]) {
+                            Some(n) => n,
+                            None => {
+                                return Err(Self::Error::FailureToParseFloat);
+                            }
+                        };
+                    } else {
+                        result = match result.checked_sub(&frac![digit, power_ten]) {
+                            Some(n) => n,
+                            None => {
+                                return Err(Self::Error::FailureToParseFloat);
+                            }
+                        };
+                    }
+                    result.simplify();
+                }
+
+                Ok(result)
+            }
         }
 
-        // Frac -> f32
+        // Fraction -> f32
         impl<T: Number + Into<f32>> Into<f32> for Fraction<T> {
             fn into(self) -> f32 {
-                self.x.into() / self.y.into()
+                self.numerator.into() / self.denominator.into()
             }
         }
 
-        // Frac -> f64
+        // Fraction -> f64
         impl<T: Number + Into<f64>> Into<f64> for Fraction<T> {
             fn into(self) -> f64 {
-                self.x.into() / self.y.into()
+                self.numerator.into() / self.denominator.into()
             }
         }
     }

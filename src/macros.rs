@@ -1,26 +1,55 @@
 //! Macros for creating and manipulating Fractions
 
 /// Shorthand for `Fraction::new(x, y);`
+///
+/// # Examples
+/// ```
+/// # use beetle_fraction::{frac, types::Fraction};
+/// let half: Fraction<u8> = Fraction::new(1, 2);
+/// let also_half: Fraction<u8> = frac![1, 2];
+/// assert_eq!(half, also_half);
+/// ```
 #[macro_export]
 macro_rules! frac {
-    ($x: expr, $y: expr) => {
-        Fraction { x: $x, y: $y }
+    ($numerator: expr, $denominator: expr) => {
+        Fraction {
+            numerator: $numerator,
+            denominator: $denominator,
+        }
     };
 }
 
 /// Shorthand for `Fraction::new(1, y);`
+///
+/// # Examples
+/// ```
+/// # use beetle_fraction::{unit, types::Fraction};
+/// let sixteenth = unit![16];
+/// assert_eq!(sixteenth, Fraction::new(1, 16));
+/// ```
 #[macro_export]
 macro_rules! unit {
     ($n: expr) => {
-        Fraction { x: 1, y: $n }
+        Fraction {
+            numerator: 1,
+            denominator: $n,
+        }
     };
 }
 
 /// Shorthand for `Fraction::new(x, 1);`
+///
+/// # Examples
+/// ```
+/// # use beetle_fraction::{int, types::Fraction};
+/// let sixteen = int![16];
+/// assert_eq!(sixteen, Fraction::new(16, 1));
 #[macro_export]
 macro_rules! int {
     ($n: expr) => {
-        // Fraction::from($n)
-        Fraction { x: $n, y: 1 }
+        Fraction {
+            numerator: $n,
+            denominator: 1,
+        }
     };
 }

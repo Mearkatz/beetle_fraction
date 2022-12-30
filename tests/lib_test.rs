@@ -2,9 +2,8 @@
 
 #[cfg(test)]
 mod lib_test {
-    use beetle_fraction::types::conversions::units::float_to_fraction;
-    use beetle_fraction::{frac, int, unit, Fraction, Number};
-    use num::{CheckedAdd, One, Zero};
+    use beetle_fraction::{frac, int, types::Fraction, unit};
+    use num::traits::ops::checked::CheckedAdd;
     use rand::{thread_rng, Rng};
 
     #[test]
@@ -21,11 +20,11 @@ mod lib_test {
     pub fn float_conversions_works() {
         // Turn Fraction into Float
         let fract: Fraction<u8> = frac![1, 2];
-        let float: f64 = fract.into();
-        let float: f32 = fract.into();
+        let _float: f64 = fract.into();
+        let _float: f32 = fract.into();
 
         // Turn Float into Fraction
-        let fract: Fraction<i128> = float_to_fraction(&-1.5_f64).unwrap();
+        let fract: Fraction<i128> = (-1.5_f64).try_into().unwrap();
         assert_eq!(fract, frac![-3, 2]);
     }
 
@@ -81,40 +80,40 @@ mod lib_test {
 
         // Returns whether adding two fractions returns the expected result
         fn add(f: Fractype, g: Fractype) -> bool {
-            let (a, b) = (f.x, f.y);
-            let (c, d) = (g.x, g.y);
+            let (a, b) = (f.numerator, f.denominator);
+            let (c, d) = (g.numerator, g.denominator);
             f + g == frac![(a * d) + (b * c), b * d]
         }
 
         fn sub(f: Fractype, g: Fractype) -> bool {
-            let (a, b) = (f.x, f.y);
-            let (c, d) = (g.x, g.y);
+            let (a, b) = (f.numerator, f.denominator);
+            let (c, d) = (g.numerator, g.denominator);
             f - g == frac![(a * d) - (b * c), b * d]
         }
 
         fn mul(f: Fractype, g: Fractype) -> bool {
-            let (a, b) = (f.x, f.y);
-            let (c, d) = (g.x, g.y);
+            let (a, b) = (f.numerator, f.denominator);
+            let (c, d) = (g.numerator, g.denominator);
             f * g == frac![a * c, b * d]
         }
 
         fn div(f: Fractype, g: Fractype) -> bool {
-            let (a, b) = (f.x, f.y);
-            let (c, d) = (g.x, g.y);
+            let (a, b) = (f.numerator, f.denominator);
+            let (c, d) = (g.numerator, g.denominator);
             f / g == frac![a * d, b * c]
         }
 
         fn neg(f: Fractype, _g: Fractype) -> bool {
-            -f == frac![-f.x, f.y]
+            -f == frac![-f.numerator, f.denominator]
         }
 
         fn pow(f: Fractype, _g: Fractype) -> bool {
-            f.pow(-1) == frac![f.y, f.x]
+            f.pow(-1) == frac![f.denominator, f.numerator]
         }
 
         fn comparisons(f: Fractype, g: Fractype) -> bool {
             // Make sure comparisons don't panic
-            f.partial_cmp(&g);
+            let _ = f.partial_cmp(&g);
             assert_eq!(f, f);
 
             // One and ONLY ONE of these MUST be true for this function to return true
