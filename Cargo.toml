@@ -1,6 +1,6 @@
 [package]
 name = "beetle-fraction"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["beetle"]
 license = "MIT"
@@ -10,6 +10,7 @@ description = "functions & structs for doing math with fractions."
 
 [dependencies]
 num = "0.4.0"
+num-traits = "0.2.15"
 
 [dev-dependencies]
 rand = "0.8.5"

@@ -1,5 +1,5 @@
 /*!
-    # Fraction Type
+    # Beetle-Fraction
 
     A set of functions and structs for doing math with rational numbers.
 
@@ -10,7 +10,7 @@
 #![deny(missing_docs)]
 
 // Dependencies
-use num::{Bounded, Integer};
+use num::Integer;
 use std::fmt::Debug;
 
 // Modules
@@ -18,9 +18,14 @@ pub mod macros;
 pub mod ops;
 pub mod types;
 
-// Re-Exports
-// pub use crate::types::*;
-
 /// Allows types to be used as the numerator / denominator of a Fraction.
-pub trait Number: Bounded + Clone + Copy + Debug + Integer {}
-impl<N> Number for N where N: Bounded + Clone + Copy + Debug + Integer {}
+pub trait Number: Copy + Debug + Integer {}
+
+// Impl Number on types which:
+// - can be copied
+//      - implicitly copies all the bits into any copies made)
+// - can be cloned
+//      - explicitly copies all the bits into any clones made via `.clone()`)
+// - Has bounds (a minimum and maximum value, for u8's these are u8::MIN (0) and u8::MAX (255))
+impl<N> Number for N
+    where N: Copy + Debug + Integer {}

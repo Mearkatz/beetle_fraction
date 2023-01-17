@@ -4,6 +4,7 @@
 mod lib_test {
     use beetle_fraction::{frac, int, types::Fraction, unit};
     use num::traits::ops::checked::CheckedAdd;
+    use num_traits::Pow;
     use rand::{thread_rng, Rng};
 
     #[test]
@@ -69,58 +70,66 @@ mod lib_test {
         //          RUN THE TESTS
         // =================================
         for (f, g) in test_fractions.into_iter() {
-            assert!(add(f, g));
-            assert!(mul(f, g));
-            assert!(sub(f, g));
-            assert!(div(f, g));
-            assert!(neg(f, g));
-            assert!(pow(f, g));
-            assert!(comparisons(f, g));
+            add(f, g);
+            mul(f, g);
+            sub(f, g);
+            div(f, g);
+            pow(f, g);
+            neg(f, g);
+            add(f, g);
+            comparisons(f, g);
         }
 
-        // Returns whether adding two fractions returns the expected result
-        fn add(f: Fractype, g: Fractype) -> bool {
+        // Asserts that the result of addition is the expected result
+        fn add(f: Fractype, g: Fractype) {
             let (a, b) = (f.numerator, f.denominator);
             let (c, d) = (g.numerator, g.denominator);
-            f + g == frac![(a * d) + (b * c), b * d]
+            assert_eq!(f + g,  frac![(a * d) + (b * c), b * d])
         }
 
-        fn sub(f: Fractype, g: Fractype) -> bool {
+        // Asserts that the result of subtraction is the expected result
+        fn sub(f: Fractype, g: Fractype) {
             let (a, b) = (f.numerator, f.denominator);
             let (c, d) = (g.numerator, g.denominator);
-            f - g == frac![(a * d) - (b * c), b * d]
+            assert_eq!(f - g,  frac![(a * d) - (b * c), b * d])
         }
 
-        fn mul(f: Fractype, g: Fractype) -> bool {
+        // Asserts that the result of multiplication is the expected result
+        fn mul(f: Fractype, g: Fractype) {
             let (a, b) = (f.numerator, f.denominator);
             let (c, d) = (g.numerator, g.denominator);
-            f * g == frac![a * c, b * d]
+            assert_eq!(f * g, frac![a * c, b * d])
         }
 
-        fn div(f: Fractype, g: Fractype) -> bool {
+        // Asserts that the result of division is the expected result
+        fn div(f: Fractype, g: Fractype) {
             let (a, b) = (f.numerator, f.denominator);
             let (c, d) = (g.numerator, g.denominator);
-            f / g == frac![a * d, b * c]
+            assert_eq!(f / g,  frac![a * d, b * c])
         }
 
-        fn neg(f: Fractype, _g: Fractype) -> bool {
-            -f == frac![-f.numerator, f.denominator]
+        // Asserts that the result of negation is the expected result
+        fn neg(f: Fractype, _g: Fractype) {
+            assert_eq!(-f, frac![-f.numerator, f.denominator])
         }
 
-        fn pow(f: Fractype, _g: Fractype) -> bool {
-            f.pow(-1) == frac![f.denominator, f.numerator]
+        // Asserts that the result of exponentiation is the expected result
+        fn pow(f: Fractype, _g: Fractype) {
+            assert_eq!(f.pow(2), f * f)
         }
 
-        fn comparisons(f: Fractype, g: Fractype) -> bool {
+        // Asserts that the result of comparison operations are the expected result
+        fn comparisons(f: Fractype, g: Fractype) {
             // Make sure comparisons don't panic
             let _ = f.partial_cmp(&g);
             assert_eq!(f, f);
 
             // One and ONLY ONE of these MUST be true for this function to return true
-            [f < g, f <= g, f > g, f >= g, f == g, f != g]
+            assert!([f < g, f <= g, f > g, f >= g, f == g, f != g]
                 .into_iter()
                 .reduce(|a, b| a ^ b)
                 .unwrap_or(false)
+            );
         }
     }
 

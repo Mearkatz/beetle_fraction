@@ -5,6 +5,7 @@ pub mod common {
     use crate::{frac, types::Fraction, Number};
 
     use num::{One, Zero};
+    use num_traits::Pow;
 
     use std::{
         iter::{Product, Sum},
@@ -65,32 +66,18 @@ pub mod common {
         }
     }
 
-    impl<T: Number> Fraction<T> {
-        /// # Exponentiation function
-        /// Raises `self` to the power of `n`
-        ///
-        /// # Examples
-        ///
-        /// ```
-        /// # use beetle_fraction::types::Fraction;
-        /// # use beetle_fraction::frac;
-        /// let fraction = frac![2, 1];
-        /// assert_eq!(fraction.pow(3), frac![8, 1]);
-        /// ```
-        pub fn pow(&self, n: isize) -> Self {
-            // Exponentation by repeated multiplication.
-            // There are faster ways, but this works for now.
-            let partial_result: Fraction<T> =
-                { std::iter::repeat(*self).take(n.unsigned_abs()).product() };
-
-            // A ^ -b == 1 / (a ^ b)
-            if n > 0 {
-                partial_result
-            } else {
-                partial_result.reciprocal()
-            }
+    impl<T: Number> Pow<u32> for Fraction<T> {
+        type Output = Self;        
+        fn pow(self, rhs: u32) -> Self::Output {
+            (0..32)
+                .rev()
+                .map(|x| rhs & 1 << x > 0)
+                .fold(Self::one(), |acc, digit| {if digit { acc * acc * self } else { acc * acc}}.simplest_form() )
         }
+    }
 
+    // MISC IMPL'S
+    impl<T: Number> Fraction<T> {        
         /// Returns the reciprocal of a fraction, by swapping its numerator and denominator        
         ///
         /// # Examples
