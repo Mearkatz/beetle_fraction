@@ -185,7 +185,7 @@ pub mod conversions {
         /// Tries casting an f64 as an integer.
         /// Only returns f as an integer, if its fractional part is zero, and f is finite.
         /// The sign of the float is also returned
-        fn try_cast_f64_as_i128(f: f64) -> Option<i128> {
+        pub fn try_cast_f64_as_i128(f: f64) -> Option<i128> {
             if f.is_finite() && (f.fract() == 0.) {
                 Some(f as i128)
             } else {
@@ -193,12 +193,15 @@ pub mod conversions {
             }
         }
 
-        fn split_on_dot(input: &str) -> IResult<&str, [&str; 2]> {
+        /// Splits a string on '.' once, and returns what's left and right of it        
+        pub fn split_on_dot(input: &str) -> IResult<&str, [&str; 2]> {
             let (before, after) = tag(".")(input)?;
             Ok(("", [before, after]))
         }
 
-        fn f64_to_fraction(f: f64) -> Option<Fraction<i128>> {
+        /// Tries converting an f64 to a fraction,
+        /// If it fails, it returns None
+        pub fn f64_to_fraction(f: f64) -> Option<Fraction<i128>> {
             // Handle NaN & Infinity
             if !f.is_finite() {
                 return None;
