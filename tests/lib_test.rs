@@ -84,14 +84,14 @@ mod lib_test {
         fn add(f: Fractype, g: Fractype) {
             let (a, b) = (f.numerator, f.denominator);
             let (c, d) = (g.numerator, g.denominator);
-            assert_eq!(f + g,  frac![(a * d) + (b * c), b * d])
+            assert_eq!(f + g, frac![(a * d) + (b * c), b * d])
         }
 
         // Asserts that the result of subtraction is the expected result
         fn sub(f: Fractype, g: Fractype) {
             let (a, b) = (f.numerator, f.denominator);
             let (c, d) = (g.numerator, g.denominator);
-            assert_eq!(f - g,  frac![(a * d) - (b * c), b * d])
+            assert_eq!(f - g, frac![(a * d) - (b * c), b * d])
         }
 
         // Asserts that the result of multiplication is the expected result
@@ -105,7 +105,7 @@ mod lib_test {
         fn div(f: Fractype, g: Fractype) {
             let (a, b) = (f.numerator, f.denominator);
             let (c, d) = (g.numerator, g.denominator);
-            assert_eq!(f / g,  frac![a * d, b * c])
+            assert_eq!(f / g, frac![a * d, b * c])
         }
 
         // Asserts that the result of negation is the expected result
@@ -115,7 +115,7 @@ mod lib_test {
 
         // Asserts that the result of exponentiation is the expected result
         fn pow(f: Fractype, _g: Fractype) {
-            assert_eq!(f.pow(2), f * f)
+            assert_eq!(f.pow(2).simplest_form(), (f * f).simplest_form())
         }
 
         // Asserts that the result of comparison operations are the expected result
@@ -128,8 +128,7 @@ mod lib_test {
             assert!([f < g, f <= g, f > g, f >= g, f == g, f != g]
                 .into_iter()
                 .reduce(|a, b| a ^ b)
-                .unwrap_or(false)
-            );
+                .unwrap_or(false));
         }
     }
 

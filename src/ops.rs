@@ -67,17 +67,26 @@ pub mod common {
     }
 
     impl<T: Number> Pow<u32> for Fraction<T> {
-        type Output = Self;        
+        type Output = Self;
         fn pow(self, rhs: u32) -> Self::Output {
             (0..32)
                 .rev()
                 .map(|x| rhs & 1 << x > 0)
-                .fold(Self::one(), |acc, digit| {if digit { acc * acc * self } else { acc * acc}}.simplest_form() )
+                .fold(Self::one(), |acc, digit| {
+                    {
+                        if digit {
+                            acc * acc * self
+                        } else {
+                            acc * acc
+                        }
+                    }
+                    .simplest_form()
+                })
         }
     }
 
     // MISC IMPL'S
-    impl<T: Number> Fraction<T> {        
+    impl<T: Number> Fraction<T> {
         /// Returns the reciprocal of a fraction, by swapping its numerator and denominator        
         ///
         /// # Examples
@@ -208,16 +217,29 @@ pub mod unchecked {}
 pub mod saturating {
     // use crate::{Fraction, Number};
     // use num::traits::SaturatingAdd;
+    use crate::{types::Fraction, Number};
+    use num::Zero;
+    use num::{CheckedAdd, CheckedMul};
+    use num_traits::SaturatingAdd;
 
-    // impl<T: Number> SaturatingAdd for Fraction<T> {
-    //     fn saturating_add(&self, v: &Self) -> Self {
-    //         // Get the min & max value for type T
-    //         let smallest = T::min_value();
-    //         let biggest = T::max_value();
+    impl<T: Number + CheckedAdd + CheckedMul> SaturatingAdd for Fraction<T> {
+        fn saturating_add(&self, v: &Self) -> Self {
+            // NO UNDERFLOW / OVERFLOW
+            if let Some(ans) = (*self).checked_add(v) {
+                ans
 
-    //         let decreasing = (self > 0) && ();
-    //     }
-    // }
+            // OVERFLOW
+            } else if self < &Self::zero() || v >= &Self::zero() {
+                // Largest possible Fraction<T>
+                Fraction::new(T::max_value(), T::one())
+
+            // UNDERFLOW
+            } else {
+                // Smallest possible Fraction<T>
+                Fraction::new(T::min_value(), T::one())
+            }
+        }
+    }
 }
 
 /// Implements the comparison operators > < >= <= == != , as well as PartialOrd for Fraction
@@ -228,12 +250,7 @@ pub mod comparisons {
 
     impl<T: Number> PartialEq for Fraction<T> {
         fn eq(&self, other: &Self) -> bool {
-            // let e = lcm(self.denominator, other.denominator);
-            // (e / self.denominator) == (e / other.denominator)
-
-            // Let's just return whether their difference is zero
-            // (*self - *other).is_zero()
-            (self.numerator * other.denominator) == (self.denominator * other.numerator)
+            (self.numerator == other.numerator) && (self.denominator == other.denominator)
         }
     }
 
@@ -257,13 +274,14 @@ pub mod comparisons {
         fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
             use std::cmp::Ordering;
             if self == other {
-                return Some(Ordering::Equal);
+                Some(Ordering::Equal)
             } else if self > other {
-                return Some(Ordering::Greater);
+                Some(Ordering::Greater)
             } else if self < other {
-                return Some(Ordering::Less);
+                Some(Ordering::Less)
+            } else {
+                None
             }
-            None
         }
     }
 }

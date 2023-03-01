@@ -14,11 +14,10 @@ pub struct Fraction<T: Number> {
     pub denominator: T,
 }
 
-/// Operations involving Fractions that return `Result`'s will return one of these variants as an `Err`
+/// Operations involving Fractions that return `Result`s will return one of these variants as an `Err`
 #[derive(Debug, Copy, Clone)]
 pub enum FractionErrors {
-    /// Denotes that a Fraction was created whose denominator was zero, and thus considered an error in its context.
-    /// This isn't very useful right now.
+    /// Denotes that a Fraction was created whose denominator was zero, and thus considered an error in its context.    
     ImpliedDivisionByZero,
 
     /// Represents the failure of an operation when the `numerator` of the fraction overflows
@@ -30,15 +29,21 @@ pub enum FractionErrors {
     /// Used to denote when casting a string as a Fraction failed
     UnableToParseString,
 
-    /// Trying to cast a f64 containing either infinity to a Fraction returns this Error.
-    /// Infinity cannot, to my knowledge, be represented as the ratio of two integers.
+    /// Represents a failure to parse a Float in some misc. way
+    FailureToParseFloat,
+}
+
+/// Errors caused when trying to convert an f32/f64 to a Fraction<i128>.
+/// Usually happen because the Float is too big or small, is NaN, or Infinity
+pub enum FractionFromFloatError {
+    /// Happens when f32/f64's infinities are casted as Fractions    
     InfinityIsNotARatio,
 
     /// Trying to cast an f64's whole number part to an integer sometimes fails if that integer part is too large
     WholeNumberPartOfFloatWasTooLargeToParse,
 
-    /// Represents a failure to parse a Float in some misc. way
-    FailureToParseFloat,
+    /// Happens when checked_add or checked_sub return None
+    Overflow,
 }
 
 // One & Zero impls
@@ -173,87 +178,131 @@ pub mod conversions {
 
     /// # Conversions between Fractions and Unit types (u8, i8, u32, etc.)
     pub mod units {
-        use crate::{frac, int, types::Fraction, Number};
-        use num::traits::{CheckedAdd, CheckedSub};
 
-        // (Try) f64 -> Fraction<i128>
-        impl TryFrom<f64> for Fraction<i128> {
-            type Error = crate::types::FractionErrors;
+        use crate::{int, types::Fraction, Number};
+        use nom::{bytes::complete::tag, IResult};
 
-            fn try_from(f: f64) -> Result<Self, Self::Error> {
-                // If Float isn't a number, It cannot be converted to a Fraction
-                if !f.is_finite() {
-                    return Err(Self::Error::InfinityIsNotARatio);
-                }
-                // If Float is an integer, just return that integer as a Fraction
-                // It's an easy conversion
-                if (f.fract() == 0.) || (f.fract() == -0.) {
-                    return Ok(int!(0));
-                } else if f.fract() == -0. {
-                    return Ok(-int![0]);
-                }
-
-                let binding: String = f.to_string();
-                let split_by_decimal_point: Vec<&str> = binding.split('.').collect();
-                // The integer part of the float is everything left of the decimal point
-                // If conversion to integer type T isn't successful, return an Error
-                let integer: i128 = if let Ok(x) = split_by_decimal_point[0].parse() {
-                    x
-                } else {
-                    return Err(Self::Error::WholeNumberPartOfFloatWasTooLargeToParse);
-                };
-
-                // - The fraction part of the float is everything that comes to the right of the decimal point
-                // - We need to store it as a string first to prevent a warning/error
-                // - Convert integer and fractional from strings into Vectors of digits (u8's)
-                let fractional: Vec<u8> = split_by_decimal_point[1]
-                    .to_string()
-                    .chars()
-                    .map(|x: char| x.to_string().parse::<u8>().unwrap())
-                    .collect();
-
-                let mut result: Fraction<i128> = int!(integer);
-
-                /*
-                1. Cast every digit in the fraction part as u128
-                2. Iterate the fraction part
-                3. Turn every digit into its fraction representation
-                4. Add all those fractions together
-
-                Ex:
-                (1.25) => 1 + (2/10) + (5/100)
-                (-1.25) => -1 - (2/10) - (5/100)
-                */
-                for (index, digit) in fractional.into_iter().map(i128::from).enumerate() {
-                    // Add (1 / (10 ** power)) to the current total
-                    let power: u32 = match (index + 1).try_into() {
-                        Ok(n) => n,
-                        Err(_) => {
-                            return Err(Self::Error::FailureToParseFloat);
-                        }
-                    };
-                    let power_ten = 10_i128.pow(power);
-                    if f.is_sign_positive() {
-                        result = match result.checked_add(&frac![digit, power_ten]) {
-                            Some(n) => n,
-                            None => {
-                                return Err(Self::Error::FailureToParseFloat);
-                            }
-                        };
-                    } else {
-                        result = match result.checked_sub(&frac![digit, power_ten]) {
-                            Some(n) => n,
-                            None => {
-                                return Err(Self::Error::FailureToParseFloat);
-                            }
-                        };
-                    }
-                    result.simplify();
-                }
-
-                Ok(result)
+        /// Tries casting an f64 as an integer.
+        /// Only returns f as an integer, if its fractional part is zero, and f is finite.
+        /// The sign of the float is also returned
+        fn try_cast_f64_as_i128(f: f64) -> Option<i128> {
+            if f.is_finite() && (f.fract() == 0.) {
+                Some(f as i128)
+            } else {
+                None
             }
         }
+
+        fn split_on_dot(input: &str) -> IResult<&str, [&str; 2]> {
+            let (before, after) = tag(".")(input)?;
+            Ok(("", [before, after]))
+        }
+
+        fn f64_to_fraction(f: f64) -> Option<Fraction<i128>> {
+            // Handle NaN & Infinity
+            if !f.is_finite() {
+                return None;
+            }
+            // Handle if `f` can be converted to an i128 without losing information
+            // Essentially, `if f == ((f as i128) as f64)`, then we return `frac![f as i128]`
+            if f == -0. {
+                return Some(-int![0]);
+            }
+            if let Some(x) = try_cast_f64_as_i128(f) {
+                return Some(int![x]);
+            }
+
+            let float_as_string = f.to_string();
+            let (_, [integer_part, fraction_part_pre]) = split_on_dot(&float_as_string).ok()?;
+
+            let integer_part: Fraction<i128> = int![integer_part.parse().ok()?];
+
+            let len: u32 = fraction_part_pre.len().try_into().ok()?;
+            let power_of_ten = 10_i128.checked_pow(len)?;
+            let fraction_part =
+                Fraction::new(fraction_part_pre.parse().ok()?, power_of_ten).simplest_form();
+
+            Some(integer_part + fraction_part)
+        }
+
+        // // (Try) f64 -> Fraction<i128>
+        // impl TryFrom<f64> for Fraction<i128> {
+        //     type Error = crate::types::FractionFromFloatError;
+
+        //     fn try_from(f: f64) -> Result<Self, Self::Error> {
+        //         // If Float isn't a number, It cannot be converted to a Fraction
+        //         if !f.is_finite() {
+        //             return Err(Self::Error::InfinityIsNotARatio);
+        //         }
+
+        //         // Handle if `f` can be converted to an i128 without losing information
+        //         // Essentially, `if f == ((f as i128) as f64)`, then we return `frac![f as i128]`
+        //         if f == -0. {
+        //             return Ok(frac![0, -1]);
+        //         }
+        //         if let Some(x) = try_cast_f64_as_i128(f) {
+        //             return Ok(int![x]);
+        //         }
+
+        //         let binding: String = f.to_string();
+        //         let mut split_by_decimal_point: Vec<&str> = Vec::with_capacity(2);
+        //         split_by_decimal_point.extend(binding.split('.').take(2));
+
+        //         // The integer part of the float is everything left of the decimal point
+        //         // If conversion to integer type T isn't successful, return an Error
+        //         let integer: i128 = if let Ok(x) = split_by_decimal_point[0].parse() {
+        //             x
+        //         } else {
+        //             return Err(Self::Error::WholeNumberPartOfFloatWasTooLargeToParse);
+        //         };
+
+        //         // - The fraction part of the float is everything that comes to the right of the decimal point
+        //         // - We need to store it as a string first to prevent a warning/error
+        //         // - Convert integer and fractional from strings into Vectors of digits (u8's)
+        //         let fractional: Vec<u8> = split_by_decimal_point[1]
+        //             .to_string()
+        //             .chars()
+        //             .map(|x: char| x.to_string().parse::<u8>().unwrap())
+        //             .collect();
+
+        //         let mut result: Fraction<i128> = int!(integer);
+
+        //         /*
+        //         1. Cast every digit in the fraction part as u128
+        //         2. Iterate the fraction part
+        //         3. Turn every digit into its fraction representation
+        //         4. Add all those fractions together
+
+        //         Ex:
+        //         (1.25) => 1 + (2/10) + (5/100)
+        //         (-1.25) => -1 - (2/10) - (5/100)
+        //         */
+        //         for (index, digit) in fractional.into_iter().map(i128::from).enumerate() {
+        //             // Add (1 / (10 ** power)) to the current total
+        //             let Ok(power) = (index + 1).try_into() else {
+        //                 return Err(Self::Error::FailureToParseFloat);
+        //             };
+        //             let power_ten = 10_i128.pow(power);
+        //             if f.is_sign_positive() {
+        //                 result = if let Some(n) = result.checked_add(&frac![digit, power_ten]) {
+        //                     n
+        //                 } else {
+        //                     return Err(Self::Error::FailureToParseFloat);
+        //                 };
+        //             } else {
+        //                 Some(result) = match result.checked_sub(&frac![digit, power_ten]) {
+        //                     Some(n) => n,
+        //                     None => {
+        //                         return Err(Self::Error::FailureToParseFloat);
+        //                     }
+        //                 };
+        //             }
+        //             result.simplify();
+        //         }
+
+        //         Ok(result)
+        //     }
+        // }
 
         // Fraction -> f32
         impl<T: Number + Into<f32>> Into<f32> for Fraction<T> {
