@@ -24,9 +24,23 @@ mod lib_test {
         let _float: f64 = fract.into();
         let _float: f32 = fract.into();
 
-        // Turn Float into Fraction
-        let fract: Fraction<i128> = (-1.5_f64).try_into().unwrap();
-        assert_eq!(fract, frac![-3, 2]);
+        let mut rng = thread_rng();
+        let trials = 10_000_000;
+        const TOLERANCE: f64 = 1e-20;
+        let tolerable_answer = |original: f64, ans: Fraction<i128>| -> bool {
+            let ans_float: f64 = (ans.numerator as f64) / (ans.denominator as f64);
+            let abs_diff = (original - ans_float).abs();
+            abs_diff < TOLERANCE
+        };
+
+        const MIN: f64 = (i128::MIN) as f64;
+        const MAX: f64 = (i128::MAX) as f64;
+
+        for _ in 0..trials {
+            let f: f64 = rng.gen_range(MIN..MAX);
+            let ans = unsafe { Fraction::from_float(f).unwrap() };
+            assert!(tolerable_answer(f, ans));
+        }
     }
 
     #[test]

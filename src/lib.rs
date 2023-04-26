@@ -7,7 +7,7 @@
     Later there will also be a SuperFraction, allowing its fields to be Fractions or a Numbers
 */
 
-#![deny(missing_docs)]
+#![deny(missing_docs, clippy::unwrap_used)]
 
 // Dependencies
 use num::{Bounded, Integer};
