@@ -106,7 +106,7 @@ impl Simplify for BigFraction {
         let fac: BigInt = num::integer::gcd(self.numerator.clone(), self.denominator.clone());
         Self::new(
             self.numerator.clone() / fac.clone(),
-            self.denominator.clone() / fac.clone(),
+            self.denominator.clone() / fac,
         )
     }
 
@@ -208,7 +208,7 @@ pub mod standard_ops {
             Self::new(
                 self.numerator.clone() * other.denominator.clone()
                     + self.denominator.clone() * other.numerator.clone(),
-                self.denominator.clone() * other.denominator.clone(),
+                self.denominator * other.denominator,
             )
         }
     }
@@ -220,7 +220,7 @@ pub mod standard_ops {
             Self::new(
                 self.numerator.clone() * other.denominator.clone()
                     - self.denominator.clone() * other.numerator.clone(),
-                self.denominator.clone() * other.denominator.clone(),
+                self.denominator * other.denominator,
             )
         }
     }
@@ -258,9 +258,9 @@ pub mod standard_ops {
                 .map(|x| rhs & 1 << x > 0)
                 .fold(Self::one(), |acc, digit| {
                     if digit {
-                        acc.clone().pow(2) * self.clone()
+                        acc.pow(2) * self.clone()
                     } else {
-                        acc.clone().pow(2)
+                        acc.pow(2)
                     }
                     .simplest_form()
                 })
