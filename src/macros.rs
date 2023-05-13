@@ -4,7 +4,7 @@
 ///
 /// # Examples
 /// ```
-/// # use beetle_fraction::{frac, types::Fraction};
+/// use beetle_fraction::prelude::*;
 /// let half: Fraction<u8> = Fraction::new(1, 2);
 /// let also_half: Fraction<u8> = frac![1, 2];
 /// assert_eq!(half, also_half);
@@ -23,7 +23,7 @@ macro_rules! frac {
 ///
 /// # Examples
 /// ```
-/// # use beetle_fraction::{unit, types::Fraction};
+/// use beetle_fraction::prelude::*;
 /// let sixteenth = unit![16];
 /// assert_eq!(sixteenth, Fraction::new(1, 16));
 /// ```
@@ -41,7 +41,7 @@ macro_rules! unit {
 ///
 /// # Examples
 /// ```
-/// # use beetle_fraction::{int, types::Fraction};
+/// # use beetle_fraction::{int, fraction::Fraction};
 /// let sixteen = int![16];
 /// assert_eq!(sixteen, Fraction::new(16, 1));
 #[macro_export]

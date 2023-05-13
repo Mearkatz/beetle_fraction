@@ -9,22 +9,15 @@
 
 #![deny(missing_docs, clippy::unwrap_used)]
 
-// Dependencies
-use num::{Bounded, Integer};
-use std::fmt::Debug;
-
 // Modules
+pub mod fraction;
 pub mod macros;
-pub mod ops;
+pub mod traits;
 pub mod types;
 
-/// Allows types to be used as the numerator / denominator of a Fraction.
-pub trait Number: Copy + Debug + Integer + Bounded {}
-
-// Impl Number on types which:
-// - can be copied
-//      - implicitly copies all the bits into any copies made)
-// - can be cloned
-//      - explicitly copies all the bits into any clones made via `.clone()`)
-// - Has bounds (a minimum and maximum value, for u8's these are u8::MIN (0) and u8::MAX (255))
-impl<N> Number for N where N: Copy + Debug + Integer + Bounded {}
+/// A prelude for frequently used types, traits, & macros
+pub mod prelude {
+    pub use crate::fraction::Fraction;
+    pub use crate::traits::{Number, Simplify};
+    pub use crate::{frac, int, unit};
+}

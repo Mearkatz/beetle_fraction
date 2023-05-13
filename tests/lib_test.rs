@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod lib_test {
-    use beetle_fraction::{frac, int, types::Fraction, unit};
+    use beetle_fraction::prelude::*;
     use num::traits::ops::checked::CheckedAdd;
     use num_traits::Pow;
     use rand::{thread_rng, Rng};
