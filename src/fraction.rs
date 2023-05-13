@@ -1,11 +1,13 @@
-//! Everything related to the Fraction type
+//! Fraction type & its trait implementations
 
-use crate::prelude::*;
+use std::fmt::Display;
+
 use crate::traits::Mediant;
 use crate::types::FractionError;
+use crate::{prelude::*, traits::Reciprocal};
 use num_traits::{Bounded, One, Zero};
 
-/// Stores a Fraction (x ÷ y) as two distinct integers
+/// A fraction (x ÷ y) represented by two primitive integers.
 #[derive(Debug, Copy, Clone)]
 pub struct Fraction<T: Number> {
     /// Top half of the fraction    
@@ -58,28 +60,16 @@ impl<T: Number> Fraction<T> {
     }
 }
 
-impl<T: Number> Simplify for Fraction<T> {
-    fn simplest_form(&self) -> Self {
-        let fac: T = num::integer::gcd(self.numerator, self.denominator);
-        frac![self.numerator / fac, self.denominator / fac]
-    }
-
-    fn simplify(&mut self) {
-        *self = self.simplest_form();
-    }
-}
-
 impl<T: Number> Bounded for Fraction<T> {
     fn max_value() -> Self {
         frac![T::one(), T::max_value()]
     }
 
     fn min_value() -> Self {
-        frac![T::max_value(), T::one()]
+        frac![T::zero(), T::one()]
     }
 }
 
-// One & Zero impls
 impl<T: Number> One for Fraction<T> {
     fn one() -> Self {
         Self {
@@ -116,6 +106,23 @@ impl<T: Number> Zero for Fraction<T> {
     }
 }
 
+impl<T: Number> Reciprocal for Fraction<T> {
+    fn reciprocal(&self) -> Self {
+        frac![self.denominator, self.numerator]
+    }
+}
+
+impl<T: Number> Simplify for Fraction<T> {
+    fn simplest_form(&self) -> Self {
+        let fac: T = num::integer::gcd(self.numerator, self.denominator);
+        frac![self.numerator / fac, self.denominator / fac]
+    }
+
+    fn simplify(&mut self) {
+        *self = self.simplest_form();
+    }
+}
+
 impl<T: Number> Mediant for Fraction<T> {
     fn mediant(&self, rhs: &Self) -> Self {
         frac![
@@ -125,7 +132,7 @@ impl<T: Number> Mediant for Fraction<T> {
     }
 }
 
-impl<T: Number> std::fmt::Display for Fraction<T> {
+impl<T: Number> Display for Fraction<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?} / {:?}", self.numerator, self.denominator)
     }
@@ -137,7 +144,44 @@ impl<T: Number> Default for Fraction<T> {
     }
 }
 
-/// For converting `To` and `From` Fractions
+impl<T: Number> PartialEq for Fraction<T> {
+    fn eq(&self, other: &Self) -> bool {
+        (self.numerator == other.numerator) && (self.denominator == other.denominator)
+    }
+}
+
+impl<T: Number> PartialOrd for Fraction<T> {
+    fn gt(&self, other: &Self) -> bool {
+        (self.numerator * other.denominator) > (self.denominator * other.numerator)
+    }
+
+    fn ge(&self, other: &Self) -> bool {
+        (self.numerator * other.denominator) >= (self.denominator * other.numerator)
+    }
+
+    fn le(&self, other: &Self) -> bool {
+        (self.numerator * other.denominator) <= (self.denominator * other.numerator)
+    }
+
+    fn lt(&self, other: &Self) -> bool {
+        (self.numerator * other.denominator) < (self.denominator * other.numerator)
+    }
+
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        use std::cmp::Ordering;
+        if self == other {
+            Some(Ordering::Equal)
+        } else if self > other {
+            Some(Ordering::Greater)
+        } else if self < other {
+            Some(Ordering::Less)
+        } else {
+            None
+        }
+    }
+}
+
+/// For converting `To` and `From` `Fraction`s
 pub mod conversions {
 
     /// Conversions between Fractions and Collections (like tuples)
@@ -302,10 +346,7 @@ pub mod standard_ops {
         }
     }
 
-    impl<T> Div for Fraction<T>
-    where
-        T: Number,
-    {
+    impl<T: Number> Div for Fraction<T> {
         type Output = Self;
         fn div(self, other: Self) -> Self::Output {
             if other.is_zero() {
@@ -318,10 +359,7 @@ pub mod standard_ops {
         }
     }
 
-    impl<T> Pow<u32> for Fraction<T>
-    where
-        T: Number,
-    {
+    impl<T: Number> Pow<u32> for Fraction<T> {
         type Output = Self;
         fn pow(self, rhs: u32) -> Self::Output {
             // This is a more compact version of 'exponentiation by squaring',
@@ -332,32 +370,6 @@ pub mod standard_ops {
                 .fold(Self::one(), |acc, digit| {
                     if digit { acc * acc * self } else { acc * acc }.simplest_form()
                 })
-        }
-    }
-
-    // MISC IMPL'S
-    impl<T: Number> Fraction<T> {
-        /// Returns the reciprocal of a fraction, by swapping its numerator and denominator        
-        ///
-        /// # Examples
-        ///
-        /// ```        
-        /// # use beetle_fraction::frac;
-        /// # use beetle_fraction::fraction::Fraction;
-        /// let fraction = frac![1, 2];
-        /// assert_eq!(fraction.reciprocal(), frac![2, 1]);
-        /// ```
-        pub fn reciprocal(&self) -> Self {
-            frac![self.denominator, self.numerator]
-        }
-
-        /// Computes the mediant of two fractions.
-        /// The mediant of (a / b) and (c / d) is ((a + b) / (c + d))
-        pub fn mediant(&self, other: &Self) -> Self {
-            frac![
-                self.numerator + other.numerator,
-                self.denominator + other.denominator
-            ]
         }
     }
 
@@ -507,49 +519,6 @@ pub mod saturating_ops {
             } else {
                 // Smallest possible Fraction<T>
                 Fraction::new(T::min_value(), T::one())
-            }
-        }
-    }
-}
-
-/// Implements the comparison operators > < >= <= == != , as well as PartialOrd for Fraction
-pub mod comparisons_ops {
-    use crate::prelude::*;
-    use std::cmp::{PartialEq, PartialOrd};
-
-    impl<T: Number> PartialEq for Fraction<T> {
-        fn eq(&self, other: &Self) -> bool {
-            (self.numerator == other.numerator) && (self.denominator == other.denominator)
-        }
-    }
-
-    impl<T: Number> PartialOrd for Fraction<T> {
-        fn gt(&self, other: &Self) -> bool {
-            (self.numerator * other.denominator) > (self.denominator * other.numerator)
-        }
-
-        fn ge(&self, other: &Self) -> bool {
-            (self.numerator * other.denominator) >= (self.denominator * other.numerator)
-        }
-
-        fn le(&self, other: &Self) -> bool {
-            (self.numerator * other.denominator) <= (self.denominator * other.numerator)
-        }
-
-        fn lt(&self, other: &Self) -> bool {
-            (self.numerator * other.denominator) < (self.denominator * other.numerator)
-        }
-
-        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-            use std::cmp::Ordering;
-            if self == other {
-                Some(Ordering::Equal)
-            } else if self > other {
-                Some(Ordering::Greater)
-            } else if self < other {
-                Some(Ordering::Less)
-            } else {
-                None
             }
         }
     }

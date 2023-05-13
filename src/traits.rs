@@ -38,3 +38,9 @@ pub trait Simplify {
     /// ```
     fn simplify(&mut self);
 }
+
+/// Allows for switching the numerator and denominator of a fraction
+pub trait Reciprocal {
+    /// Returns a Fraction with its numerator and denominator switched
+    fn reciprocal(&self) -> Self;
+}

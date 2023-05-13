@@ -74,8 +74,8 @@ mod lib_test {
         // Random fractions to be tested
         const TEST_FRACTION_PAIRS: usize = 500_000;
         let test_fractions: Vec<(Fraction<i64>, Fraction<i64>)> = {
-            std::iter::repeat(())
-                .take(TEST_FRACTION_PAIRS)
+            [(); TEST_FRACTION_PAIRS]
+                .into_iter()
                 .map(|_| (random_fraction(), random_fraction()))
                 .collect()
         };
