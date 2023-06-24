@@ -10,8 +10,12 @@ repository = "https://github.com/Mearkatz/beetle_fraction"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+digitize = "0.1.0"
+floating-cat = "0.1.0"
 num = "0.4.0"
 num-traits = "0.2.15"
 
+
 [dev-dependencies]
 rand = "0.8.5"
+rayon = "1.7.0"

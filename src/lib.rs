@@ -4,11 +4,12 @@
     A set of functions and structs for doing math with rational numbers.
 
     Example program:
-    ```rust
+    ```
+    # use beetle_fraction::*;
+    # use beetle_fraction::prelude::*;
     fn main() {
-        use beetle_fraction::prelude::*;
-        let f = frac![1, 2];
-
+        let half = frac![1, 2];
+        assert_eq!(half * half, frac![1, 4]);
     }
     ```
 */
@@ -25,6 +26,6 @@ pub mod types;
 /// A prelude for frequently used types, traits, & macros
 pub mod prelude {
     pub use crate::fraction::Fraction;
-    pub use crate::traits::{Number, Simplify};
-    pub use crate::{frac, int, unit};
+    pub use crate::macros::*;
+    pub use crate::traits::*;
 }

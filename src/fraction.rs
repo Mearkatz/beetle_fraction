@@ -1,14 +1,12 @@
 //! Fraction type & its trait implementations
 
-use std::fmt::Display;
+use num_traits::{One, Zero};
 
-use crate::traits::Mediant;
-use crate::types::FractionError;
-use crate::{prelude::*, traits::Reciprocal};
-use num_traits::{Bounded, One, Zero};
+use crate::prelude::*;
+use crate::traits::{IsFraction, MakeMe, Mediant};
 
 /// A fraction (x ÷ y) represented by two primitive integers.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct Fraction<T: Number> {
     /// Top half of the fraction    
     pub numerator: T,
@@ -16,59 +14,59 @@ pub struct Fraction<T: Number> {
     pub denominator: T,
 }
 
-// Misc. Impls
-// These are sets of functions that aren't an implementation of a trait
-impl<T: Number> Fraction<T> {
-    /// Creates a new Fraction
-    ///
-    /// # Examples
-    /// ```
-    /// use beetle_fraction::prelude::*;
-    /// let one_half: Fraction<i32> = Fraction::new(1, 2); // Represents (1 / 2)
-    /// assert_eq!(one_half, Fraction {numerator: 1, denominator: 2});
-    /// ```
-    pub fn new(numerator: T, denominator: T) -> Self {
+impl<T: Number> MakeMe<T> for Fraction<T> {
+    fn new(numerator: T, denominator: T) -> Self {
         Self {
             numerator,
             denominator,
         }
     }
 
-    /// Version of the `new` function with some extra safety checks
-    ///
-    /// # Safety Checks:
-    /// - must be non-zero, to prevent implied division by zero
-    ///
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use beetle_fraction::prelude::*;
-    /// let bad_fraction = Fraction::checked_new(1, 0); // is the error variant, because of implied division by zero
-    /// assert!(bad_fraction.is_err())
-    ///
-    /// ```
-    pub fn checked_new(numerator: T, denominator: T) -> Result<Self, FractionError> {
+    fn checked_new(numerator: T, denominator: T) -> Option<Self> {
         if denominator.is_zero() {
-            Err(FractionError::ImpliedDivisionByZero)
+            None
         } else {
-            Ok(Self {
-                numerator,
-                denominator,
-            })
+            Some(Self::new(numerator, denominator))
         }
     }
 }
 
-impl<T: Number> Bounded for Fraction<T> {
-    fn max_value() -> Self {
-        frac![T::one(), T::max_value()]
+impl<T: Number> IsFraction<T> for Fraction<T> {
+    fn numerator(&self) -> T {
+        self.numerator
     }
 
-    fn min_value() -> Self {
-        frac![T::zero(), T::one()]
+    fn set_numerator(&mut self, n: T) {
+        self.numerator = n;
+    }
+
+    fn denominator(&self) -> T {
+        self.denominator
+    }
+
+    fn set_denominator(&mut self, n: T) {
+        self.denominator = n;
+    }
+
+    fn numerator_ref(&self) -> &T {
+        &self.numerator
+    }
+
+    fn denominator_ref(&self) -> &T {
+        &self.denominator
     }
 }
+
+impl<T: Number> Mediant for Fraction<T> {
+    fn mediant(&self, rhs: &Self) -> Self {
+        Self::new(
+            self.numerator() + rhs.numerator(),
+            self.denominator() + rhs.denominator(),
+        )
+    }
+}
+
+impl<T: Number> Simplify<T> for Fraction<T> {}
 
 impl<T: Number> One for Fraction<T> {
     fn one() -> Self {
@@ -76,10 +74,6 @@ impl<T: Number> One for Fraction<T> {
             numerator: T::one(),
             denominator: T::one(),
         }
-    }
-
-    fn set_one(&mut self) {
-        *self = Self::one();
     }
 
     fn is_one(&self) -> bool {
@@ -90,10 +84,6 @@ impl<T: Number> One for Fraction<T> {
 }
 
 impl<T: Number> Zero for Fraction<T> {
-    fn is_zero(&self) -> bool {
-        self.numerator.is_zero()
-    }
-
     fn zero() -> Self {
         Self {
             numerator: T::zero(),
@@ -101,40 +91,8 @@ impl<T: Number> Zero for Fraction<T> {
         }
     }
 
-    fn set_zero(&mut self) {
-        *self = Self::zero();
-    }
-}
-
-impl<T: Number> Reciprocal for Fraction<T> {
-    fn reciprocal(&self) -> Self {
-        frac![self.denominator, self.numerator]
-    }
-}
-
-impl<T: Number> Simplify for Fraction<T> {
-    fn simplest_form(&self) -> Self {
-        let fac: T = num::integer::gcd(self.numerator, self.denominator);
-        frac![self.numerator / fac, self.denominator / fac]
-    }
-
-    fn simplify(&mut self) {
-        *self = self.simplest_form();
-    }
-}
-
-impl<T: Number> Mediant for Fraction<T> {
-    fn mediant(&self, rhs: &Self) -> Self {
-        frac![
-            self.numerator + rhs.numerator,
-            self.denominator + rhs.denominator
-        ]
-    }
-}
-
-impl<T: Number> Display for Fraction<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?} / {:?}", self.numerator, self.denominator)
+    fn is_zero(&self) -> bool {
+        self.numerator.is_zero()
     }
 }
 
@@ -144,40 +102,17 @@ impl<T: Number> Default for Fraction<T> {
     }
 }
 
-impl<T: Number> PartialEq for Fraction<T> {
-    fn eq(&self, other: &Self) -> bool {
-        (self.numerator == other.numerator) && (self.denominator == other.denominator)
+impl<T: Number + std::fmt::Display> std::fmt::Display for Fraction<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} / {}", self.numerator_ref(), self.denominator_ref())
     }
 }
 
 impl<T: Number> PartialOrd for Fraction<T> {
-    fn gt(&self, other: &Self) -> bool {
-        (self.numerator * other.denominator) > (self.denominator * other.numerator)
-    }
-
-    fn ge(&self, other: &Self) -> bool {
-        (self.numerator * other.denominator) >= (self.denominator * other.numerator)
-    }
-
-    fn le(&self, other: &Self) -> bool {
-        (self.numerator * other.denominator) <= (self.denominator * other.numerator)
-    }
-
-    fn lt(&self, other: &Self) -> bool {
-        (self.numerator * other.denominator) < (self.denominator * other.numerator)
-    }
-
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        use std::cmp::Ordering;
-        if self == other {
-            Some(Ordering::Equal)
-        } else if self > other {
-            Some(Ordering::Greater)
-        } else if self < other {
-            Some(Ordering::Less)
-        } else {
-            None
-        }
+        let a = self.numerator() * other.denominator();
+        let b = self.denominator() * other.numerator();
+        a.partial_cmp(&b)
     }
 }
 
@@ -206,93 +141,108 @@ pub mod conversions {
 
     /// Conversions between Fractions and Unit types (u8, i8, u32, etc.)
     pub mod units {
+        use crate::{frac, int, prelude::*};
+        use digitize::FloatDigits;
+        use floating_cat::CatFloat::*;
+        use floating_cat::*;
+        use std::fmt::Display;
 
-        use num::Zero;
+        #[derive(Debug)]
+        #[allow(dead_code)]
+        enum FloatToFractionError {
+            IsInfinte(f64),
+            IsNan(f64),
+            HasTooManyDigits(f64),
+        }
 
-        use crate::{frac, fraction::Fraction, traits::Number};
+        impl Display for FloatToFractionError {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match &self {
+                    FloatToFractionError::IsInfinte(x) => {
+                        write!(f, "Error: {x} is Positive or Negative Infinity")
+                    }
+                    FloatToFractionError::IsNan(x) => {
+                        write!(f, "Error: {x} is Positive or Negative NaN")
+                    }
+                    FloatToFractionError::HasTooManyDigits(x) => {
+                        write!(f, "Error: {x} has too many digits")
+                    }
+                }
+            }
+        }
+
+        impl std::error::Error for FloatToFractionError {}
 
         impl Fraction<i128> {
-            /// Attempts to convert an f64 < 1 into a Fraction.
-            /// This does not check that the f64 is actually less than 1.0
-            /// If an f64 greater than 1 is passed to this function, you will receive an incorrect Fraction as a result, use from_float instead.
-            /// # Safety
-            /// I've not done extensive testing on this besides with intended inputs.
-            /// It's probably best not to pass NaN, Infinity, or floats > 1 to this function, as it doesn't test against them.
-            pub unsafe fn float_less_than_one_to_fraction(f: f64) -> Option<Fraction<i128>> {
-                let f_digits: i32 = (f.to_string().len() - 2).try_into().ok()?;
-                let power_of_ten: f64 = 10f64.powi(f_digits);
-                let ans = f * power_of_ten;
-
-                if !ans.is_finite() {
-                    return None;
-                }
-
-                let power_of_ten_int: i128 = power_of_ten.to_int_unchecked();
-
-                let fract = frac![ans.to_int_unchecked(), power_of_ten_int];
-                Some(fract)
-            }
-
             /// Attempts to convert an f64 to a Fraction<i128>
             /// # Safety
             /// To my knowledge there are no safety issues.
-            /// I've tested this with random floats in the range i128::MIN .. i128::MAX with no issues.
+            /// I've tested this with random floats in the range `i128::MIN..i128::MAX` with no issues.
             /// I've tested this with NaN and Infinity with no issues.
             /// This is only unsafe for simplicty and performance reasons, I'll probably make it safe later.
-            pub unsafe fn from_float(f: f64) -> Option<Self> {
-                if !f.is_finite() {
-                    return None;
-                }
-
+            pub unsafe fn from_f64(f: f64) -> Option<Self> {
                 // To ensure to_int_unchecked succeeds, we need to make sure
                 let upper_bound = (i128::MAX - 1) as f64;
                 let lower_bound = (i128::MIN + 1) as f64;
 
+                /// Attempts to convert an f64 < 1 into a Fraction.
+                /// This does not check that the f64 is actually less than 1.0
+                /// If an f64 greater than 1 is passed to this function, you will receive an incorrect Fraction as a result, use from_float instead.
+                /// # Safety
+                /// I've not done extensive testing on this besides with intended inputs.            
+                pub unsafe fn float_less_than_one_to_fraction(f: f64) -> Option<Fraction<i128>> {
+                    debug_assert!((f.is_sign_positive()) && (f <= 1.));
+
+                    // let number_of_digits: i32 = (f.to_string().len() - 2).try_into().ok()?;
+                    let number_of_digits: i32 = f.digits_right_of_dot().len().try_into().ok()?;
+                    let power_of_ten: f64 = 10f64.powi(number_of_digits);
+                    let ans: i128 = (f * power_of_ten).to_int_unchecked();
+
+                    let fract = frac![ans, power_of_ten.to_int_unchecked()];
+                    Some(fract)
+                }
+
                 let try_cast_to_int = |x: f64| -> Option<i128> {
-                    if (x > lower_bound) && (x < upper_bound) {
+                    if x > lower_bound && x < upper_bound {
                         Some(x.to_int_unchecked())
                     } else {
                         None
                     }
                 };
 
-                // If F is an integer 'I', just return frac![I, 1]
-                if f.fract().is_zero() {
-                    let i = try_cast_to_int(f)?;
-                    return Some(frac![i, 1]);
+                let integer_like_float_to_fraction =
+                    |ilf: f64| -> Option<Self> { try_cast_to_int(ilf).map(|x| int![x]) };
+
+                match f.category() {
+                    // Integer-like (1.0, 1000.0, -0.0, etc.)
+                    IntegerLike(integer) => integer_like_float_to_fraction(integer),
+
+                    // Fraction-like (0.5, 0.1, -0.333, etc)
+                    FractionLike(fraction) => float_less_than_one_to_fraction(fraction),
+
+                    // Float-like (1.5, -2.6, etc)
+                    IntegerAndFractionalPart(integer, fraction) => Some(
+                        integer_like_float_to_fraction(integer)?
+                            + float_less_than_one_to_fraction(fraction)?,
+                    ),
+                    Nan | Infinity => None,
                 }
-
-                // The integer and fractional parts of the float (the parts before and after the decimal point)
-                let integer = f.trunc();
-                let numerator: i128 = try_cast_to_int(integer)?;
-                let to_add = Self::float_less_than_one_to_fraction(f.fract())?;
-
-                let ans = frac![numerator, 1] + to_add;
-                Some(ans)
             }
         }
 
-        // Fraction -> f32
-        // The reason we use Into is because converting Fractions into Floats is trivial, whereas converting Floats to Fractions can sometimes fail, like if the Float is Infinity or NaN.
-        #[allow(clippy::from_over_into)]
-        impl<T: Number + Into<f32>> Into<f32> for Fraction<T> {
-            fn into(self) -> f32 {
-                self.numerator.into() / self.denominator.into()
-            }
-        }
-
-        // Fraction -> f64
-        #[allow(clippy::from_over_into)]
-        impl<T: Number + Into<f64>> Into<f64> for Fraction<T> {
-            fn into(self) -> f64 {
-                self.numerator.into() / self.denominator.into()
+        impl<T: Number + num::ToPrimitive> Fraction<T> {
+            /// Returns the float that represents the result of `self.numerator / self.denominator`.
+            /// If the numerator or denominator are too large to be cast as floats, this returns None.            
+            pub fn as_f64(&self) -> Option<f64> {
+                Some(self.numerator().to_f64()? / self.denominator().to_f64()?)
             }
         }
     }
 }
 /// Standard math operators like + - * / pow
 pub mod standard_ops {
-    use crate::prelude::*;
+    use super::Fraction;
+    use crate::traits::*;
 
     use num::{One, Zero};
     use num_traits::Pow;
@@ -310,7 +260,7 @@ pub mod standard_ops {
         type Output = Self;
 
         fn neg(self) -> Self::Output {
-            frac![-self.numerator, self.denominator]
+            Self::new(-self.numerator, self.denominator)
         }
     }
 
@@ -318,10 +268,10 @@ pub mod standard_ops {
         type Output = Self;
 
         fn add(self, other: Self) -> Self::Output {
-            frac![
+            Self::new(
                 (self.numerator * other.denominator) + (self.denominator * other.numerator),
-                self.denominator * other.denominator
-            ]
+                self.denominator * other.denominator,
+            )
         }
     }
 
@@ -329,33 +279,34 @@ pub mod standard_ops {
         type Output = Self;
 
         fn sub(self, other: Self) -> Self::Output {
-            frac![
-                (self.numerator * other.denominator) - (self.denominator * other.numerator),
-                (self.denominator * other.denominator)
-            ]
+            Self::new(
+                self.numerator * other.denominator - self.denominator * other.numerator,
+                self.denominator * other.denominator,
+            )
         }
     }
 
     impl<T: Number> Mul for Fraction<T> {
         type Output = Self;
         fn mul(self, other: Self) -> Self::Output {
-            frac![
+            Self::new(
                 self.numerator * other.numerator,
-                self.denominator * other.denominator
-            ]
+                self.denominator * other.denominator,
+            )
         }
     }
 
     impl<T: Number> Div for Fraction<T> {
         type Output = Self;
+
         fn div(self, other: Self) -> Self::Output {
             if other.is_zero() {
                 panic!("Division by a Fraction equal to zero is disallowed.");
             }
-            frac![
+            Self::new(
                 self.numerator * other.denominator,
-                self.denominator * other.numerator
-            ]
+                self.denominator * other.numerator,
+            )
         }
     }
 
@@ -447,7 +398,7 @@ pub mod checked_ops {
             let numerator = numerator_left?.checked_add(&numerator_right?)?;
             let denominator = self.denominator.checked_mul(&v.denominator)?;
 
-            Some(frac![numerator, denominator])
+            Some(Self::new(numerator, denominator))
         }
     }
 
@@ -464,7 +415,7 @@ pub mod checked_ops {
             let numerator = numerator_left?.checked_sub(&numerator_right?)?;
             let denominator = self.denominator.checked_mul(&v.denominator)?;
 
-            Some(frac![numerator, denominator])
+            Some(Self::new(numerator, denominator))
         }
     }
 
@@ -475,7 +426,7 @@ pub mod checked_ops {
         fn checked_mul(&self, v: &Self) -> Option<Self> {
             let numerator = self.numerator.checked_mul(&v.numerator)?;
             let denominator = self.denominator.checked_mul(&v.denominator)?;
-            Some(frac![numerator, denominator])
+            Some(Self::new(numerator, denominator))
         }
     }
 
@@ -486,7 +437,7 @@ pub mod checked_ops {
         fn checked_div(&self, v: &Self) -> Option<Self> {
             let numerator = self.numerator.checked_mul(&v.denominator)?;
             let denominator = self.denominator.checked_mul(&v.numerator)?;
-            Some(frac![numerator, denominator])
+            Some(Self::new(numerator, denominator))
         }
     }
 }
