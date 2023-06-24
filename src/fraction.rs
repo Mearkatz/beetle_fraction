@@ -174,7 +174,7 @@ pub mod conversions {
         impl std::error::Error for FloatToFractionError {}
 
         impl Fraction<i128> {
-            /// Attempts to convert an f64 to a Fraction<i128>
+            /// Attempts to convert an `f64` to a `Fraction<i128>`
             /// # Safety
             /// To my knowledge there are no safety issues.
             /// I've tested this with random floats in the range `i128::MIN..i128::MAX` with no issues.
