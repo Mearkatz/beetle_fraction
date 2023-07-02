@@ -241,136 +241,134 @@ pub mod conversions {
             }
         }
     }
-    /// Standard math operators like + - * / pow
-    pub mod standard_ops {
-        use num::{One, Zero};
-        use num_traits::Pow;
+}
+/// Standard math operators like + - * / pow
+pub mod standard_ops {
+    use num::{One, Zero};
+    use num_traits::Pow;
 
-        use std::{
-            iter::{Product, Sum},
-            ops::{Add, Div, Mul, Neg, Sub},
-        };
+    use std::{
+        iter::{Product, Sum},
+        ops::{Add, Div, Mul, Neg, Sub},
+    };
 
-        use crate::{
-            big_fraction::BigFraction,
-            traits::{IsFraction, MakeMe},
-        };
+    use crate::{
+        big_fraction::BigFraction,
+        traits::{IsFraction, MakeMe},
+    };
 
-        // Implements Negation for Fraction<T> where T is a signed integer
-        impl Neg for BigFraction {
-            type Output = Self;
+    // Implements Negation for Fraction<T> where T is a signed integer
+    impl Neg for BigFraction {
+        type Output = Self;
 
-            fn neg(self) -> Self::Output {
-                Self::new(-self.numerator(), self.denominator())
-            }
-        }
-
-        impl Add for BigFraction {
-            type Output = Self;
-
-            fn add(self, other: Self) -> Self::Output {
-                Self::new(
-                    (self.numerator() * other.denominator())
-                        + (self.denominator() * other.numerator()),
-                    self.denominator() * other.denominator(),
-                )
-            }
-        }
-
-        impl Sub for BigFraction {
-            type Output = Self;
-
-            fn sub(self, other: Self) -> Self::Output {
-                Self::new(
-                    (self.numerator() * other.denominator())
-                        - (self.denominator() * other.numerator()),
-                    self.denominator() * other.denominator(),
-                )
-            }
-        }
-
-        impl Mul for BigFraction {
-            type Output = Self;
-            fn mul(self, other: Self) -> Self::Output {
-                Self::new(
-                    self.numerator() * other.numerator(),
-                    self.denominator() * other.denominator(),
-                )
-            }
-        }
-
-        impl Div for BigFraction {
-            type Output = Self;
-
-            fn div(self, other: Self) -> Self::Output {
-                if other.is_zero() {
-                    panic!("Division by a Fraction equal to zero is disallowed.");
-                }
-                Self::new(
-                    self.numerator() * other.denominator(),
-                    self.denominator() * other.numerator(),
-                )
-            }
-        }
-
-        impl Pow<u32> for BigFraction {
-            type Output = Self;
-            fn pow(self, rhs: u32) -> Self::Output {
-                // This is a more compact version of 'exponentiation by squaring',
-                // which is faster than just repeated multiplication.
-                (0..32)
-                    .rev()
-                    .map(|x| rhs & 1 << x > 0)
-                    .fold(Self::one(), |acc, digit| {
-                        if digit {
-                            acc.clone() * acc * self.clone()
-                        } else {
-                            acc.clone() * acc
-                        }
-                    })
-            }
-        }
-
-        impl Sum for BigFraction {
-            fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-                iter.reduce(|a, b| a + b).unwrap_or_else(Self::zero)
-            }
-        }
-
-        impl Product for BigFraction {
-            fn product<I: Iterator<Item = Self>>(iter: I) -> Self {
-                iter.reduce(|a, b| a * b).unwrap_or_else(Self::one)
-            }
+        fn neg(self) -> Self::Output {
+            Self::new(-self.numerator(), self.denominator())
         }
     }
 
-    /// Assignment Operators like `+=`, `-=`, '*=', `/=`, etc.
-    pub mod assignment_ops {
-        use crate::big_fraction::BigFraction;
-        use std::ops::{AddAssign, DivAssign, MulAssign, SubAssign};
+    impl Add for BigFraction {
+        type Output = Self;
 
-        impl AddAssign for BigFraction {
-            fn add_assign(&mut self, rhs: Self) {
-                *self = self.clone() + rhs
-            }
+        fn add(self, other: Self) -> Self::Output {
+            Self::new(
+                (self.numerator() * other.denominator()) + (self.denominator() * other.numerator()),
+                self.denominator() * other.denominator(),
+            )
         }
+    }
 
-        impl SubAssign for BigFraction {
-            fn sub_assign(&mut self, rhs: Self) {
-                *self = self.clone() - rhs
-            }
+    impl Sub for BigFraction {
+        type Output = Self;
+
+        fn sub(self, other: Self) -> Self::Output {
+            Self::new(
+                (self.numerator() * other.denominator()) - (self.denominator() * other.numerator()),
+                self.denominator() * other.denominator(),
+            )
         }
+    }
 
-        impl MulAssign for BigFraction {
-            fn mul_assign(&mut self, rhs: Self) {
-                *self = self.clone() * rhs
-            }
+    impl Mul for BigFraction {
+        type Output = Self;
+        fn mul(self, other: Self) -> Self::Output {
+            Self::new(
+                self.numerator() * other.numerator(),
+                self.denominator() * other.denominator(),
+            )
         }
+    }
 
-        impl DivAssign for BigFraction {
-            fn div_assign(&mut self, rhs: Self) {
-                *self = self.clone() / rhs
+    impl Div for BigFraction {
+        type Output = Self;
+
+        fn div(self, other: Self) -> Self::Output {
+            if other.is_zero() {
+                panic!("Division by a Fraction equal to zero is disallowed.");
             }
+            Self::new(
+                self.numerator() * other.denominator(),
+                self.denominator() * other.numerator(),
+            )
+        }
+    }
+
+    impl Pow<u32> for BigFraction {
+        type Output = Self;
+        fn pow(self, rhs: u32) -> Self::Output {
+            // This is a more compact version of 'exponentiation by squaring',
+            // which is faster than just repeated multiplication.
+            (0..32)
+                .rev()
+                .map(|x| rhs & 1 << x > 0)
+                .fold(Self::one(), |acc, digit| {
+                    if digit {
+                        acc.clone() * acc * self.clone()
+                    } else {
+                        acc.clone() * acc
+                    }
+                })
+        }
+    }
+
+    impl Sum for BigFraction {
+        fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+            iter.reduce(|a, b| a + b).unwrap_or_else(Self::zero)
+        }
+    }
+
+    impl Product for BigFraction {
+        fn product<I: Iterator<Item = Self>>(iter: I) -> Self {
+            iter.reduce(|a, b| a * b).unwrap_or_else(Self::one)
+        }
+    }
+}
+
+/// Assignment Operators like `+=`, `-=`, '*=', `/=`, etc.
+pub mod assignment_ops {
+    use crate::big_fraction::BigFraction;
+    use std::ops::{AddAssign, DivAssign, MulAssign, SubAssign};
+
+    impl AddAssign for BigFraction {
+        fn add_assign(&mut self, rhs: Self) {
+            *self = self.clone() + rhs
+        }
+    }
+
+    impl SubAssign for BigFraction {
+        fn sub_assign(&mut self, rhs: Self) {
+            *self = self.clone() - rhs
+        }
+    }
+
+    impl MulAssign for BigFraction {
+        fn mul_assign(&mut self, rhs: Self) {
+            *self = self.clone() * rhs
+        }
+    }
+
+    impl DivAssign for BigFraction {
+        fn div_assign(&mut self, rhs: Self) {
+            *self = self.clone() / rhs
         }
     }
 }

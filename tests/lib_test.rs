@@ -76,7 +76,7 @@ mod lib_test {
         };
 
         // Random fractions to be tested
-        const TEST_FRACTION_PAIRS: usize = 500_000;
+        const TEST_FRACTION_PAIRS: usize = 1_000_000;
 
         let test_fractions: Vec<[Fraction<BigType>; 2]> = {
             let rand_pair = |_| [random_fraction(), random_fraction()];
