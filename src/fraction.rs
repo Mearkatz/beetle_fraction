@@ -147,6 +147,15 @@ pub mod conversions {
         use floating_cat::*;
         use std::fmt::Display;
 
+        impl<T: Number> From<T> for Fraction<T> {
+            fn from(value: T) -> Self {
+                Self {
+                    numerator: value,
+                    denominator: T::one(),
+                }
+            }
+        }
+
         #[derive(Debug)]
         #[allow(dead_code)]
         enum FloatToFractionError {
